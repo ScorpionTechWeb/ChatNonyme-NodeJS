@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="utf-8" />
+        <title>Chat</title>
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <div>
+            <h1>Chat</h1>
+            <input
+                type="text"
+                name="msg"
+                placeholder="Votre message"
+                autofocus
+            />
+            <button id="sendMsg">Envoyer</button>
+            <ul id="msgList"></ul>
+        </div>
+        <div>
+            <button id="updatePseudo">Modifier pseudo</button>
+            <ul id="usersConnected"></ul>
+        </div>
+        <!-- JS -->
+        <script src="/socket.io/socket.io.js"></script>
+        <script>
+            let socket = io();
+            let pseudo, oldPseudo;
+            let msgList = document.querySelector("#msgList");
+            let usersConnected = document.querySelector("#usersConnected");
+            let btnSendMsg = document.querySelector("#sendMsg");
+            let btnUpdatePseudo = document.querySelector("#updatePseudo");
+            let msg = document.querySelector("input");
+
+            socket.on("load_old_msgs", function (msgs) {
+                for (var i = msgs.length - 1; i >= 0; i--) {
+                    addLi(
+                        msgList,
+                        "message",
+                        msgs[i].pseudo + " : " + msgs[i].msg
+                    );
+                }
+            });
+
+            function askPseudo(type) {
+                let promptMsg;
+                switch (type) {
+                    case "alreadyUsed":
+                        promptMsg = "Pseudo déjà utilisé, entrez-en un autre.";
+                        pseudo = "";
+                        break;
+                    case "updateAlreadyUsed":
+                        promptMsg =
+                            "Ce pseudo est déjà pris. Quel est votre nouveau pseudo ?";
+                        pseudo = "";
+                        break;
+                    case "updatePseudo":
+                        promptMsg = "Quel est votre nouveau pseudo ?";
+                        pseudo = "";
+                        break;
+                    default:
+                        promptMsg = "Quel est votre pseudo ?";
+                }
+                while (!pseudo) {
+                    pseudo = prompt(promptMsg);
+                }
+                type.indexOf("update") !== -1
+                    ? socket.emit("updatePseudo", oldPseudo, pseudo)
+                    : socket.emit("sendPseudo", pseudo);
+            }
+
+            function addLi(ul, typeMsg, msg) {
+                let li = document.createElement("li");
+                li.className = typeMsg;
+                li.textContent = msg;
+                ul.append(li);
+            }
+
+            function updatePseudo(oldPseudo, newPseudo) {
+                let liUsers = document.querySelectorAll("#usersConnected li");
+                liUsers.forEach((user) => {
+                    if (user.textContent === oldPseudo) {
+                        user.textContent = newPseudo;
+                    }
+                });
+            }
+
+            socket.on("usersConnected", function (users) {
+                for (var i = users.length - 1; i >= 0; i--) {
+                    addLi(usersConnected, "", users[i].user);
+                }
+            });
+
+            socket.on("newUser", (pseudo) => {
+                addLi(
+                    msgList,
+                    "connection",
+                    pseudo + " vient de se connecter."
+                );
+                addLi(usersConnected, "", pseudo);
+            });
+
+            socket.on("AllUsers", function (users) {
+                for (var i = users.length - 1; i >= 0; i--) {
+                    addLi(usersConnected, "", users[i].user);
+                }
+            });
+
+            socket.on("pseudoValid", () => {
+                addLi(usersConnected, "", pseudo);
+            });
+
+            socket.on("updatePseudoValid", () => {
+                updatePseudo(oldPseudo, pseudo);
+            });
+
+            socket.on("pseudoAlreadyUsed", () => {
+                askPseudo("alreadyUsed");
+            });
+
+            socket.on("updateAlreadyUsed", () => {
+                askPseudo("updateAlreadyUsed");
+            });
+
+            socket.on("updatePseudo", (oldPseudo, newPseudo) => {
+                addLi(
+                    msgList,
+                    "updatePseudo",
+                    oldPseudo + " devient " + newPseudo
+                );
+                updatePseudo(oldPseudo, newPseudo);
+            });
+
+            socket.on("newMessage", (message) => {
+                addLi(msgList, "message", message);
+            });
+
+            msg.addEventListener("keydown", (evt) => {
+                if (evt.key === "Enter") {
+                    btnSendMsg.click();
+                }
+            });
+
+            btnSendMsg.addEventListener("click", () => {
+                let msgValue = msg.value;
+                if (msgValue) {
+                    socket.emit("sendMessage", pseudo, msgValue);
+                    addLi(msgList, "ownMessage", pseudo + " : " + msgValue);
+                    msg.value = "";
+                    msg.focus();
+                }
+            });
+
+            btnUpdatePseudo.addEventListener("click", () => {
+                oldPseudo = pseudo;
+                pseudo = "";
+                askPseudo("updatePseudo");
+            });
+
+            askPseudo("newUser");
+        </script>
+    </body>
+</html>

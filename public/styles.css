@@ -1,0 +1,30 @@
+div:first-child {
+    width: 300px;
+}
+div {
+    display: inline-block;
+    vertical-align: top;
+}
+ul {
+    list-style-type: none;
+}
+li.connection {
+    font-style: italic;
+    color: green;
+}
+li.ownMessage {
+    color: rgb(0, 0, 190);
+}
+li.updatePseudo {
+    font-style: italic;
+    color: orange;
+}
+
+.chatBoard {
+    display: none;
+}
+
+.login {
+    margin: 0 auto;
+    width: 100px;
+}
